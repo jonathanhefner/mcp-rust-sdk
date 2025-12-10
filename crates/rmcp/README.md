@@ -255,7 +255,7 @@ RMCP uses feature flags to control which components are included:
   - `transport-async-rw`: Async read/write support
   - `transport-io`: I/O stream support
   - `transport-child-process`: Child process support
-  - `transport-streamable-http-client` / `transport-streamable-http-server`: HTTP streaming (client agnostic, see [`StreamableHttpClientTransport`] for details)
+  - `transport-streamable-http-client` / `transport-streamable-http-server`: HTTP streaming (client agnostic, see [`StreamableHttpClientTransport`](crate::transport::StreamableHttpClientTransport) for details)
     - `transport-streamable-http-client-reqwest`: a default `reqwest` implementation of the streamable http client
 - `auth`: OAuth2 authentication support
 - `schemars`: JSON Schema generation (for tool definitions)
@@ -270,22 +270,23 @@ RMCP uses feature flags to control which components are included:
 
 <details>
 <summary>Transport</summary>
-The transport type must implemented [`Transport`] trait, which allow it send message concurrently and receive message sequentially.
+
+The transport type must implement the [`Transport`](crate::transport::Transport) trait, which allows it to send messages concurrently and receive messages sequentially.
 There are 2 pairs of standard transport types:
 
-| transport         | client                                                    | server                                                |
-|:-:                |:-:                                                        |:-:                                                    |
-| std IO            | [`child_process::TokioChildProcess`]                      | [`io::stdio`]                                         |
-| streamable http   | [`streamable_http_client::StreamableHttpClientTransport`] | [`streamable_http_server::session::create_session`]   |
+| transport       | client                                                                              | server                                                                        |
+|:---------------:|:-----------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------:|
+| std IO          | [`TokioChildProcess`](crate::transport::TokioChildProcess)                          | [`stdio`](crate::transport::stdio)                                            |
+| streamable http | [`StreamableHttpClientTransport`](crate::transport::StreamableHttpClientTransport)  | [`StreamableHttpService`](crate::transport::StreamableHttpService)            |
 
-#### [IntoTransport](`IntoTransport`) trait
-[`IntoTransport`] is a helper trait that implicitly convert a type into a transport type.
+#### [`IntoTransport`](crate::transport::IntoTransport) trait
+[`IntoTransport`](crate::transport::IntoTransport) is a helper trait that implicitly converts a type into a transport type.
 
-These types is automatically implemented [`IntoTransport`] trait
-1. A type that already implement both [`futures::Sink`] and [`futures::Stream`] trait, or a tuple `(Tx, Rx)`  where `Tx` is [`futures::Sink`] and `Rx` is [`futures::Stream`].
-2. A type that implement both [`tokio::io::AsyncRead`] and [`tokio::io::AsyncWrite`] trait. or a tuple `(R, W)` where `R` is [`tokio::io::AsyncRead`] and `W` is [`tokio::io::AsyncWrite`].
-3. A type that implement [Worker](`worker::Worker`) trait.
-4. A type that implement [`Transport`] trait.
+These types automatically implement [`IntoTransport`](crate::transport::IntoTransport):
+1. A type that implements both `futures::Sink` and `futures::Stream`, or a tuple `(Tx, Rx)` where `Tx` is `futures::Sink` and `Rx` is `futures::Stream`.
+2. A type that implements both `tokio::io::AsyncRead` and `tokio::io::AsyncWrite`, or a tuple `(R, W)` where `R` is `tokio::io::AsyncRead` and `W` is `tokio::io::AsyncWrite`.
+3. A type that implements the [`Worker`](crate::transport::worker::Worker) trait.
+4. A type that implements the [`Transport`](crate::transport::Transport) trait.
 
 </details>
 
