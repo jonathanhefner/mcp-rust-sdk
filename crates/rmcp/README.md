@@ -13,20 +13,21 @@
 
 `rmcp` is the official Rust implementation of the Model Context Protocol (MCP), a protocol designed for AI assistants to communicate with other services. This library can be used to build both servers that expose capabilities to AI assistants and clients that interact with such servers.
 
-
-
 ## Quick Start
 
 ### Server Implementation
 
 Creating a server with tools is simple using the `#[tool]` macro:
 
-```rust, ignore
+```rust,no_run
 use rmcp::{
-    handler::server::router::tool::ToolRouter, model::*, tool, tool_handler, tool_router,
-    transport::stdio, ErrorData as McpError, ServiceExt,
+    ServerHandler, ServiceExt,
+    handler::server::tool::ToolRouter,
+    model::*,
+    tool, tool_handler, tool_router,
+    transport::stdio,
+    ErrorData as McpError,
 };
-use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -65,7 +66,7 @@ impl Counter {
 
 // Implement the server handler
 #[tool_handler]
-impl rmcp::ServerHandler for Counter {
+impl ServerHandler for Counter {
     fn get_info(&self) -> ServerInfo {
         ServerInfo {
             instructions: Some("A simple counter that tallies the number of times the increment tool has been used".into()),
@@ -83,7 +84,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Error starting server: {}", e);
     })?;
     service.waiting().await?;
-
     Ok(())
 }
 ```
@@ -92,11 +92,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 Tools can return structured JSON data with schemas. Use the [`Json`] wrapper:
 
-```rust,ignore
-use rmcp::{tool, tool_router, handler::server::{tool::ToolRouter, wrapper::Parameters}, Json};
-use schemars::JsonSchema;
-use serde::{Serialize, Deserialize};
-
+```rust
+# use rmcp::{tool, tool_router, handler::server::{tool::ToolRouter, wrapper::Parameters}, Json};
+# use schemars::JsonSchema;
+# use serde::{Serialize, Deserialize};
+#
 #[derive(Serialize, Deserialize, JsonSchema)]
 struct CalculationRequest {
     a: i32,
@@ -110,24 +110,24 @@ struct CalculationResult {
     operation: String,
 }
 
-#[derive(Clone)]
-struct Calculator {
-    tool_router: ToolRouter<Self>,
-}
+# #[derive(Clone)]
+# struct Calculator {
+#     tool_router: ToolRouter<Self>,
+# }
+#
+# #[tool_router]
+# impl Calculator {
+#[tool(name = "calculate", description = "Perform a calculation")]
+async fn calculate(&self, params: Parameters<CalculationRequest>) -> Result<Json<CalculationResult>, String> {
+    let result = match params.0.operation.as_str() {
+        "add" => params.0.a + params.0.b,
+        "multiply" => params.0.a * params.0.b,
+        _ => return Err("Unknown operation".to_string()),
+    };
 
-#[tool_router]
-impl Calculator {
-    #[tool(name = "calculate", description = "Perform a calculation")]
-    async fn calculate(&self, params: Parameters<CalculationRequest>) -> Result<Json<CalculationResult>, String> {
-        let result = match params.0.operation.as_str() {
-            "add" => params.0.a + params.0.b,
-            "multiply" => params.0.a * params.0.b,
-            _ => return Err("Unknown operation".to_string()),
-        };
-
-        Ok(Json(CalculationResult { result, operation: params.0.operation }))
-    }
+    Ok(Json(CalculationResult { result, operation: params.0.operation }))
 }
+# }
 ```
 
 The `#[tool]` macro automatically generates an output schema from the `CalculationResult` type.
@@ -136,25 +136,24 @@ The `#[tool]` macro automatically generates an output schema from the `Calculati
 
 Creating a client to interact with a server:
 
-```rust, ignore
+```rust,no_run
 use rmcp::{
+    ServiceExt,
     model::CallToolRequestParam,
-    service::ServiceExt,
-    transport::{TokioChildProcess, ConfigureCommandExt}
+    transport::{ConfigureCommandExt, TokioChildProcess},
 };
-use serde_json;
 use tokio::process::Command;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to a server running as a child process
     let service = ()
-    .serve(TokioChildProcess::new(Command::new("uvx").configure(
-        |cmd| {
-            cmd.arg("mcp-server-git");
-        },
-    ))?)
-    .await?;
+        .serve(TokioChildProcess::new(Command::new("uvx").configure(
+            |cmd| {
+                cmd.arg("mcp-server-git");
+            },
+        ))?)
+        .await?;
 
     // Get server information
     let server_info = service.peer_info();
@@ -175,7 +174,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Gracefully close the connection
     service.cancel().await?;
-    
     Ok(())
 }
 ```
@@ -203,8 +201,6 @@ use tokio::process::Command;
 let transport = TokioChildProcess::new(Command::new("mcp-server"))?;
 let service = client.serve(transport).await?;
 ```
-
-
 
 ## Access with peer interface when handling message
 
