@@ -180,6 +180,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+For more examples, see the [examples directory](https://github.com/anthropics/mcp-rust-sdk/tree/main/examples) in the repository.
+
 ## Transport Options
 
 RMCP supports multiple transport mechanisms, each suited for different use cases:
@@ -194,7 +196,7 @@ For working directly with I/O streams (`tokio::io::AsyncRead` and `tokio::io::As
 Run MCP servers as child processes and communicate via standard I/O.
 
 Example:
-```rust
+```rust,ignore
 use rmcp::transport::TokioChildProcess;
 use tokio::process::Command;
 
