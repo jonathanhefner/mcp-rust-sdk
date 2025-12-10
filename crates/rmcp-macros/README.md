@@ -1,12 +1,28 @@
+<style>
+.rustdoc-hidden { display: none; }
+</style>
+
+<div class="rustdoc-hidden">
+
 # rmcp-macros
+
+[![Crates.io](https://img.shields.io/crates/v/rmcp-macros.svg)](https://crates.io/crates/rmcp-macros)
+[![Documentation](https://docs.rs/rmcp-macros/badge.svg)](https://docs.rs/rmcp-macros)
+
+</div>
 
 `rmcp-macros` is a procedural macro library for the Rust Model Context Protocol (RMCP) SDK, providing macros that facilitate the development of RMCP applications.
 
 ## Features
 
-This library primarily provides the following macros:
+This library provides the following macros:
 
-- `#[tool]`: Used to mark functions as RMCP tools, automatically generating necessary metadata and invocation mechanisms
+- `#[tool]`: Mark functions as RMCP tools
+- `#[tool_router]`: Generate a tool router from an impl block
+- `#[tool_handler]`: Generate handler methods for tools
+- `#[prompt]`: Mark functions as RMCP prompts
+- `#[prompt_router]`: Generate a prompt router from an impl block
+- `#[prompt_handler]`: Generate handler methods for prompts
 
 ## Usage
 
@@ -27,7 +43,7 @@ This will generate a function that return the attribute of this tool, with type 
 
 #### Example
 
-```rust
+```rust,ignore
 #[tool(name = "my_tool", description = "This is my tool", annotations(title = "我的工具", read_only_hint = true))]
 pub async fn my_tool(param: Parameters<MyToolParam>) {
     // handling tool request
@@ -51,12 +67,12 @@ In most case, you need to add a field for handler to store the router informatio
 
 #### Example
 
-```rust
+```rust,ignore
 #[tool_router]
 impl MyToolHandler {
     #[tool]
     pub fn my_tool() {
-        
+
     }
 
     pub fn new() -> Self {
@@ -70,13 +86,13 @@ impl MyToolHandler {
 
 Or specify the visibility and router name, which would be helpful when you want to combine multiple routers into one:
 
-```rust
+```rust,ignore
 mod a {
     #[tool_router(router = tool_router_a, vis = "pub")]
     impl MyToolHandler {
         #[tool]
         fn my_tool_a() {
-            
+
         }
     }
 }
@@ -86,7 +102,7 @@ mod b {
     impl MyToolHandler {
         #[tool]
         fn my_tool_b() {
-            
+
         }
     }
 }
@@ -111,7 +127,7 @@ This macro will generate the handler for `tool_call` and `list_tools` methods in
 | `router`  | `Expr`        | The expression to access the `ToolRouter` instance. Defaults to `self.tool_router`. |
 
 #### Example
-```rust
+```rust,ignore
 #[tool_handler]
 impl ServerHandler for MyToolHandler {
     // ...implement other handler
@@ -119,7 +135,7 @@ impl ServerHandler for MyToolHandler {
 ```
 
 or using a custom router expression:
-```rust
+```rust,ignore
 #[tool_handler(router = self.get_router().await)]
 impl ServerHandler for MyToolHandler {
    // ...implement other handler
@@ -128,7 +144,7 @@ impl ServerHandler for MyToolHandler {
 
 #### Explained
 This macro will be expended to something like this:
-```rust
+```rust,ignore
 impl ServerHandler for MyToolHandler {
        async fn call_tool(
         &self,
@@ -151,12 +167,94 @@ impl ServerHandler for MyToolHandler {
 ```
 
 
+### prompt
+
+This macro is used to mark a function as a prompt handler.
+
+This will generate a function that returns the attribute of this prompt, with type `rmcp::model::Prompt`.
+
+#### Usage
+
+| field             | type     | usage |
+| :-                | :-       | :-    |
+| `name`            | `String` | The name of the prompt. If not provided, it defaults to the function name. |
+| `description`     | `String` | A description of the prompt. The document of this function will be used if not provided. |
+| `arguments`       | `Expr`   | An expression that evaluates to `Option<Vec<PromptArgument>>` defining the prompt's arguments. If not provided, it will automatically generate arguments from the `Parameters<T>` type found in the function signature. |
+
+#### Example
+
+```rust,ignore
+#[prompt(name = "code_review", description = "Reviews code for best practices")]
+pub async fn code_review_prompt(&self, Parameters(args): Parameters<CodeReviewArgs>) -> Result<Vec<PromptMessage>> {
+    // Generate prompt messages based on arguments
+}
+```
+
+### prompt_router
+
+This macro generates a prompt router based on functions marked with `#[rmcp::prompt]` in an implementation block.
+
+It creates a function that returns a `PromptRouter` instance.
+
+#### Usage
+
+| field     | type          | usage |
+| :-        | :-            | :-    |
+| `router`  | `Ident`       | The name of the router function to be generated. Defaults to `prompt_router`. |
+| `vis`     | `Visibility`  | The visibility of the generated router function. Defaults to empty. |
+
+#### Example
+
+```rust,ignore
+#[prompt_router]
+impl MyPromptHandler {
+    #[prompt]
+    pub async fn greeting_prompt(&self, Parameters(args): Parameters<GreetingArgs>) -> Result<Vec<PromptMessage>, Error> {
+        // Generate greeting prompt using args
+    }
+
+    pub fn new() -> Self {
+        Self {
+            // the default name of prompt router will be `prompt_router`
+            prompt_router: Self::prompt_router(),
+        }
+    }
+}
+```
+
+### prompt_handler
+
+This macro generates handler methods for `get_prompt` and `list_prompts` in the implementation block, using an existing `PromptRouter` instance.
+
+#### Usage
+
+| field     | type   | usage |
+| :-        | :-     | :-    |
+| `router`  | `Expr` | The expression to access the `PromptRouter` instance. Defaults to `self.prompt_router`. |
+
+#### Example
+```rust,ignore
+#[prompt_handler]
+impl ServerHandler for MyPromptHandler {
+    // ...implement other handler methods
+}
+```
+
+or using a custom router expression:
+```rust,ignore
+#[prompt_handler(router = self.get_prompt_router())]
+impl ServerHandler for MyPromptHandler {
+   // ...implement other handler methods
+}
+```
+
 ## Advanced Features
 
-- Support for custom tool names and descriptions
-- Automatic generation of tool descriptions from documentation comments
+- Support for custom tool and prompt names and descriptions
+- Automatic generation of descriptions from documentation comments
 - JSON Schema generation for tool parameters
+- Automatic prompt argument generation from `Parameters<T>` types
 
 ## License
 
-Please refer to the LICENSE file in the project root directory. 
+Please refer to the LICENSE file in the project root directory.

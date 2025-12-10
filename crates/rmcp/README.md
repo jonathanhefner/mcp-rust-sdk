@@ -1,10 +1,17 @@
+<style>
+.rustdoc-hidden { display: none; }
+</style>
+
+<div class="rustdoc-hidden">
+
 # RMCP: Rust Model Context Protocol
 
-`rmcp` is the official Rust implementation of the Model Context Protocol (MCP), a protocol designed for AI assistants to communicate with other services. This library can be used to build both servers that expose capabilities to AI assistants and clients that interact with such servers.
+[![Crates.io](https://img.shields.io/crates/v/rmcp.svg)](https://crates.io/crates/rmcp)
+[![Documentation](https://docs.rs/rmcp/badge.svg)](https://docs.rs/rmcp)
 
-wait for the first release.
-<!-- [![Crates.io](todo)](todo)
-[![Documentation](todo)](todo) -->
+</div>
+
+`rmcp` is the official Rust implementation of the Model Context Protocol (MCP), a protocol designed for AI assistants to communicate with other services. This library can be used to build both servers that expose capabilities to AI assistants and clients that interact with such servers.
 
 
 
@@ -81,6 +88,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### Structured Output
+
+Tools can return structured JSON data with schemas. Use the [`Json`] wrapper:
+
+```rust,ignore
+use rmcp::{tool, tool_router, handler::server::{tool::ToolRouter, wrapper::Parameters}, Json};
+use schemars::JsonSchema;
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct CalculationRequest {
+    a: i32,
+    b: i32,
+    operation: String,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema)]
+struct CalculationResult {
+    result: i32,
+    operation: String,
+}
+
+#[derive(Clone)]
+struct Calculator {
+    tool_router: ToolRouter<Self>,
+}
+
+#[tool_router]
+impl Calculator {
+    #[tool(name = "calculate", description = "Perform a calculation")]
+    async fn calculate(&self, params: Parameters<CalculationRequest>) -> Result<Json<CalculationResult>, String> {
+        let result = match params.0.operation.as_str() {
+            "add" => params.0.a + params.0.b,
+            "multiply" => params.0.a * params.0.b,
+            _ => return Err("Unknown operation".to_string()),
+        };
+
+        Ok(Json(CalculationResult { result, operation: params.0.operation }))
+    }
+}
+```
+
+The `#[tool]` macro automatically generates an output schema from the `CalculationResult` type.
+
 ### Client Implementation
 
 Creating a client to interact with a server:
@@ -91,6 +142,7 @@ use rmcp::{
     service::ServiceExt,
     transport::{TokioChildProcess, ConfigureCommandExt}
 };
+use serde_json;
 use tokio::process::Command;
 
 #[tokio::main]
@@ -115,8 +167,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Call a tool
     let result = service
         .call_tool(CallToolRequestParam {
-            name: "increment".into(),
-            arguments: None,
+            name: "git_status".into(),
+            arguments: serde_json::json!({ "repo_path": "." }).as_object().cloned(),
         })
         .await?;
     println!("Result: {result:#?}");
